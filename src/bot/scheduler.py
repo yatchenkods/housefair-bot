@@ -28,8 +28,25 @@ async def _check_overdue(bot):
         logger.error(f"Scheduler error: {e}")
 
 
-def start_scheduler(bot, interval_minutes: int = 30):
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(_check_overdue, "interval", minutes=interval_minutes, args=[bot])
-    scheduler.start()
-    return scheduler
+class BotScheduler:
+    def __init__(self, interval_minutes: int):
+        self._interval_minutes = interval_minutes
+        self._scheduler = AsyncIOScheduler()
+        self._bot = None
+
+    def configure_bot(self, bot):
+        self._bot = bot
+        self._scheduler.add_job(
+            _check_overdue, "interval", minutes=self._interval_minutes, args=[bot]
+        )
+
+    def start(self):
+        self._scheduler.start()
+
+    def shutdown(self):
+        if self._scheduler.running:
+            self._scheduler.shutdown()
+
+
+def start_scheduler(interval_minutes: int = 30) -> BotScheduler:
+    return BotScheduler(interval_minutes)
