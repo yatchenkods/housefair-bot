@@ -91,10 +91,9 @@ async def got_assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.edit_message_text(
         f"✅ Задача создана!\n"
-        f"*{chore['title']}* (#{chore['id']})\n"
+        f"{chore['title']} (#{chore['id']})\n"
         f"Тип: {chore['chore_type']}\n"
         f"Назначение: {mode}",
-        parse_mode="Markdown",
     )
     return ConversationHandler.END
 
@@ -110,6 +109,7 @@ def get_chore_conversation():
             CommandHandler("addchore", addchore_start),
             CommandHandler("task", addchore_start),
         ],
+        per_message=False,
         states={
             TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, got_title)],
             TYPE: [CallbackQueryHandler(got_type, pattern="^type:")],
