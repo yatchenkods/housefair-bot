@@ -50,7 +50,7 @@ async def test_shopping_list(db, family_with_members):
 
     await service.toggle_shopping_item(ids["family_id"], items[0]["id"])
     items = await service.get_shopping_list(ids["family_id"])
-    bought = [i for i in items if i["bought"]]
+    bought = [i for i in items if i["is_bought"]]
     assert len(bought) == 1
 
     await service.clear_bought_items(ids["family_id"])

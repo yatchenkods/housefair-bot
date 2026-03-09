@@ -10,5 +10,7 @@ class Settings(BaseSettings):
     backup_hour: int = 3
     backup_retention_days: int = 30
     tz: str = "Europe/Moscow"
+    webapp_url: str = ""
+    jwt_secret: str = "dev-secret-change-me"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}

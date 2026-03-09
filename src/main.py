@@ -1,6 +1,12 @@
 import asyncio
+import warnings
 
 from loguru import logger
+from telegram.warnings import PTBUserWarning
+
+# chores_handler и product_conv используют смешанные состояния (MessageHandler + CallbackQueryHandler),
+# поэтому per_message=False — намеренный выбор. Предупреждения PTB подавляем явно.
+warnings.filterwarnings("ignore", category=PTBUserWarning, message=".*per_message.*")
 from telegram.ext import ApplicationBuilder
 
 from src.config import Settings
@@ -31,6 +37,9 @@ async def post_shutdown(app) -> None:
 
 
 def main() -> None:
+    # Python 3.12+ no longer auto-creates event loop in get_event_loop()
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
     settings = Settings()
     setup_logger(settings.log_level)
 

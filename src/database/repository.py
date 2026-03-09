@@ -8,7 +8,7 @@ from typing import Optional
 import aiosqlite
 from loguru import logger
 
-from src.database.models import Chore, Family, Member, Product, Recipe
+from src.database.models import Chore, Family, Member, Product, Recipe, ShoppingItem
 
 
 class Database:
@@ -22,6 +22,7 @@ class Database:
         self.db.row_factory = aiosqlite.Row
         await self.db.execute("PRAGMA journal_mode=WAL")
         await self.db.execute("PRAGMA foreign_keys=ON")
+        await self.db.execute("PRAGMA busy_timeout=5000")
         logger.info("Database connected: {}", self.db_path)
 
     async def close(self) -> None:
@@ -118,8 +119,19 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_products_family ON products(family_id);
             CREATE INDEX IF NOT EXISTS idx_members_family ON members(family_id);
             CREATE INDEX IF NOT EXISTS idx_members_user ON members(user_id);
+
+            CREATE TABLE IF NOT EXISTS shopping_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                family_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                is_bought INTEGER DEFAULT 0,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_shopping_family ON shopping_items(family_id);
         """)
         await self.db.commit()
+        await self._migrate_shopping_list()
         logger.info("Database tables initialized")
 
     async def check_integrity(self) -> bool:
@@ -408,3 +420,77 @@ class Database:
         ) as cursor:
             row = await cursor.fetchone()
             return row[0]
+
+    async def delete_chore(self, chore_id: int) -> None:
+        await self.db.execute("DELETE FROM chores WHERE id = ?", (chore_id,))
+        await self.db.commit()
+
+    # --- Shopping Items CRUD ---
+
+    async def add_shopping_item(self, family_id: int, name: str) -> int:
+        async with self.db.execute(
+            "INSERT INTO shopping_items (family_id, name) VALUES (?, ?)",
+            (family_id, name),
+        ) as cursor:
+            await self.db.commit()
+            return cursor.lastrowid
+
+    async def get_shopping_list(self, family_id: int) -> list[dict]:
+        async with self.db.execute(
+            "SELECT * FROM shopping_items WHERE family_id = ? ORDER BY added_at ASC",
+            (family_id,),
+        ) as cursor:
+            return [dict(r) for r in await cursor.fetchall()]
+
+    async def toggle_shopping_item(self, item_id: int) -> None:
+        await self.db.execute(
+            "UPDATE shopping_items SET is_bought = NOT is_bought WHERE id = ?",
+            (item_id,),
+        )
+        await self.db.commit()
+
+    async def delete_shopping_item(self, item_id: int) -> None:
+        await self.db.execute("DELETE FROM shopping_items WHERE id = ?", (item_id,))
+        await self.db.commit()
+
+    async def clear_bought_items(self, family_id: int) -> None:
+        await self.db.execute(
+            "DELETE FROM shopping_items WHERE family_id = ? AND is_bought = 1",
+            (family_id,),
+        )
+        await self.db.commit()
+
+    async def get_shopping_item(self, item_id: int) -> Optional[dict]:
+        async with self.db.execute(
+            "SELECT * FROM shopping_items WHERE id = ?", (item_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+    async def _migrate_shopping_list(self) -> None:
+        """Migrate shopping list from families.settings JSON to shopping_items table."""
+        families = await self.get_all_families()
+        for family in families:
+            settings = json.loads(family.get("settings", "{}"))
+            old_list = settings.get("shopping_list", [])
+            if not old_list:
+                continue
+            # Check if already migrated (table has items for this family)
+            async with self.db.execute(
+                "SELECT COUNT(*) FROM shopping_items WHERE family_id = ?", (family["id"],)
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row[0] > 0:
+                    continue
+            for item in old_list:
+                await self.db.execute(
+                    "INSERT INTO shopping_items (family_id, name, is_bought) VALUES (?, ?, ?)",
+                    (family["id"], item["name"], 1 if item.get("bought") else 0),
+                )
+            settings.pop("shopping_list", None)
+            await self.db.execute(
+                "UPDATE families SET settings = ? WHERE id = ?",
+                (json.dumps(settings, ensure_ascii=False), family["id"]),
+            )
+            await self.db.commit()
+            logger.info("Migrated shopping list for family {}", family["id"])

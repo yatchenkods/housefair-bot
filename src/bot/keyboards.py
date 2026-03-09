@@ -1,4 +1,4 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 
 CHORE_PRESETS = [
     "Помыть посуду",
@@ -126,6 +126,13 @@ def recipe_time_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("Средне (30-60 мин)", callback_data="rtime:средне")],
         [InlineKeyboardButton("Долго (60+ мин)", callback_data="rtime:долго")],
     ])
+
+
+def webapp_keyboard(url: str) -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton("📱 Открыть приложение", web_app=WebAppInfo(url=url))]],
+        resize_keyboard=True,
+    )
 
 
 def shopping_item_keyboard(items: list[tuple[int, str, bool]]) -> InlineKeyboardMarkup:

@@ -1,4 +1,3 @@
-import json
 from typing import Optional
 
 from src.database.models import Product, Recipe
@@ -54,43 +53,17 @@ class CookingService:
         return await self.db.save_recipe(recipe)
 
     async def get_shopping_list(self, family_id: int) -> list[dict]:
-        family = await self.db.get_family(family_id)
-        if not family:
-            return []
-        settings = json.loads(family.get("settings", "{}"))
-        return settings.get("shopping_list", [])
+        return await self.db.get_shopping_list(family_id)
 
     async def add_shopping_item(self, family_id: int, item: str) -> None:
-        family = await self.db.get_family(family_id)
-        if not family:
-            return
-        settings = json.loads(family.get("settings", "{}"))
-        shopping = settings.get("shopping_list", [])
-        for existing in shopping:
-            if existing["name"].lower() == item.lower():
+        existing = await self.db.get_shopping_list(family_id)
+        for e in existing:
+            if e["name"].lower() == item.lower():
                 return
-        shopping.append({"name": item, "bought": False, "id": len(shopping) + 1})
-        settings["shopping_list"] = shopping
-        await self.db.update_family_settings(family_id, settings)
+        await self.db.add_shopping_item(family_id, item)
 
     async def toggle_shopping_item(self, family_id: int, item_id: int) -> None:
-        family = await self.db.get_family(family_id)
-        if not family:
-            return
-        settings = json.loads(family.get("settings", "{}"))
-        shopping = settings.get("shopping_list", [])
-        for item in shopping:
-            if item["id"] == item_id:
-                item["bought"] = not item["bought"]
-                break
-        settings["shopping_list"] = shopping
-        await self.db.update_family_settings(family_id, settings)
+        await self.db.toggle_shopping_item(item_id)
 
     async def clear_bought_items(self, family_id: int) -> None:
-        family = await self.db.get_family(family_id)
-        if not family:
-            return
-        settings = json.loads(family.get("settings", "{}"))
-        shopping = [i for i in settings.get("shopping_list", []) if not i["bought"]]
-        settings["shopping_list"] = shopping
-        await self.db.update_family_settings(family_id, settings)
+        await self.db.clear_bought_items(family_id)

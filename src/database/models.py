@@ -78,3 +78,11 @@ class Statistics(BaseModel):
     recipes_cooked: int = 0
     total_points: int = 0
     data: str = "{}"
+
+
+class ShoppingItem(BaseModel):
+    id: Optional[int] = None
+    family_id: int
+    name: str
+    is_bought: bool = False
+    added_at: Optional[datetime] = None

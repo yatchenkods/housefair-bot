@@ -3,7 +3,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from loguru import logger
 
-from src.bot.keyboards import settings_keyboard, timezone_keyboard, assign_mode_keyboard
+from src.bot.keyboards import settings_keyboard, timezone_keyboard, assign_mode_keyboard, webapp_keyboard
 
 
 async def get_user_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -28,12 +28,18 @@ async def get_user_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
+    text = (
         "Привет! Я бот для управления домашними делами.\n\n"
         "Для начала создайте семью командой /addfamily <название>\n"
         "Затем добавьте участников: /addmember @username\n\n"
         "Используйте /help для списка команд."
     )
+    bot_settings = context.bot_data.get("settings")
+    webapp_url = getattr(bot_settings, "webapp_url", "") if bot_settings else ""
+    if webapp_url:
+        await update.message.reply_text(text, reply_markup=webapp_keyboard(webapp_url))
+    else:
+        await update.message.reply_text(text)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -248,7 +248,7 @@ async def shopping_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return
 
-    kb_items = [(i["id"], i["name"], i["bought"]) for i in items]
+    kb_items = [(i["id"], i["name"], bool(i["is_bought"])) for i in items]
     await update.message.reply_text(
         "Список покупок:", reply_markup=shopping_item_keyboard(kb_items)
     )
@@ -274,7 +274,7 @@ async def shopping_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await service.toggle_shopping_item(family["id"], item_id)
 
     items = await service.get_shopping_list(family["id"])
-    kb_items = [(i["id"], i["name"], i["bought"]) for i in items]
+    kb_items = [(i["id"], i["name"], bool(i["is_bought"])) for i in items]
     await query.edit_message_reply_markup(reply_markup=shopping_item_keyboard(kb_items))
 
 
@@ -306,7 +306,7 @@ def register_cooking_handlers(app):
         },
         fallbacks=[CommandHandler("cancel", cancel_cooking)],
         name="recipe_conv",
-        per_chat=True,
+        per_message=True,
     )
 
     app.add_handler(product_conv)
