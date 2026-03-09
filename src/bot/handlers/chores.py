@@ -9,6 +9,7 @@ from telegram.ext import (
 )
 
 from ..client import api
+from ..utils import get_family_and_member
 
 TITLE, TYPE, CATEGORY, PHOTO, ASSIGN = range(5)
 
@@ -66,17 +67,9 @@ async def got_assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     mode = query.data.split(":")[1]
 
-    chat_id = update.effective_chat.id
-    user = update.effective_user
-
-    family = await api.get_family_by_chat(chat_id)
-    if not family:
+    family, member = await get_family_and_member(update)
+    if not family or not member:
         await query.edit_message_text("Сначала используйте /start")
-        return ConversationHandler.END
-
-    member = await api.get_member_by_user(user.id, family["id"])
-    if not member:
-        await query.edit_message_text("Вы не зарегистрированы. Используйте /start")
         return ConversationHandler.END
 
     chore_payload = {

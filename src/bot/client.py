@@ -53,6 +53,28 @@ class APIClient:
             return member
         return await self.create_member(family_id, user_id, username, display_name, role)
 
+    async def get_family_by_id(self, family_id: int) -> dict | None:
+        r = await self._client.get(f"/api/families/by_id/{family_id}")
+        if r.status_code == 404:
+            return None
+        r.raise_for_status()
+        return r.json()
+
+    async def get_user_memberships(self, user_id: int) -> list[dict]:
+        r = await self._client.get("/api/members", params={"user_id": user_id})
+        r.raise_for_status()
+        return r.json()
+
+    async def list_members(self, family_id: int) -> list[dict]:
+        r = await self._client.get("/api/members", params={"family_id": family_id})
+        r.raise_for_status()
+        return r.json()
+
+    async def update_member_role(self, member_id: int, role: str) -> dict:
+        r = await self._client.patch(f"/api/members/{member_id}", json={"role": role})
+        r.raise_for_status()
+        return r.json()
+
     async def create_chore(self, payload: dict) -> dict:
         r = await self._client.post("/api/chores", json=payload)
         r.raise_for_status()

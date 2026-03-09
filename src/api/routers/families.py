@@ -25,6 +25,14 @@ def list_families(session: Session = Depends(get_session)):
     return session.exec(select(Family)).all()
 
 
+@router.get("/by_id/{family_id}", response_model=FamilyRead)
+def get_family_by_id(family_id: int, session: Session = Depends(get_session)):
+    family = session.get(Family, family_id)
+    if not family:
+        raise HTTPException(status_code=404, detail="Family not found")
+    return family
+
+
 @router.get("/{chat_id}", response_model=FamilyRead)
 def get_family_by_chat(chat_id: int, session: Session = Depends(get_session)):
     family = session.exec(select(Family).where(Family.chat_id == chat_id)).first()

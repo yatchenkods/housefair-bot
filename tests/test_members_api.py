@@ -25,3 +25,16 @@ def test_get_member_by_user(client):
     r = client.get(f"/api/members/by_user?user_id=999&family_id={fam['id']}")
     assert r.status_code == 200
     assert r.json()["user_id"] == 999
+
+
+def test_patch_member_role(client):
+    fam = client.post("/api/families", json={"name": "F", "chat_id": 777}).json()
+    m = client.post("/api/members", json={"family_id": fam["id"], "user_id": 101, "display_name": "Alice", "role": "member"}).json()
+    r = client.patch(f"/api/members/{m['id']}", json={"role": "admin"})
+    assert r.status_code == 200
+    assert r.json()["role"] == "admin"
+
+
+def test_patch_member_not_found(client):
+    r = client.patch("/api/members/99999", json={"role": "admin"})
+    assert r.status_code == 404

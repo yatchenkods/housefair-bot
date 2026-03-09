@@ -78,6 +78,10 @@ class ChoreUpdate(BaseModel):
     photo_url: Optional[str] = None
 
 
+class MemberUpdate(BaseModel):
+    role: Optional[str] = None
+
+
 class AssignRequest(BaseModel):
     mode: str = "manual"  # manual/random/rotation/free
     assigned_to: Optional[int] = None  # for manual mode
