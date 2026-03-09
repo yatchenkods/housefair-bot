@@ -25,7 +25,13 @@ def main():
     app.add_handler(CommandHandler("done", done_cmd))
     app.add_handler(CallbackQueryHandler(done_callback, pattern="^done:"))
 
-    scheduler = start_scheduler(app.bot, settings.reminder_interval_minutes)
+    scheduler = start_scheduler(settings.reminder_interval_minutes)
+
+    async def post_init(application):
+        scheduler.configure_bot(application.bot)
+        scheduler.start()
+
+    app.post_init = post_init
 
     logger.info("Bot started")
     app.run_polling()
