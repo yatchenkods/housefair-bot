@@ -87,7 +87,7 @@ async def got_assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.edit_message_text(
         f"✅ Задача создана!\n"
-        f"{chore['title']} (#{chore['id']})\n"
+        f"{chore['title']}\n"
         f"Тип: {chore['chore_type']}\n"
         f"Назначение: {mode}",
     )

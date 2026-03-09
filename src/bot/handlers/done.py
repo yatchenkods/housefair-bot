@@ -22,7 +22,7 @@ async def done_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         chore = await api.complete_chore(chore_id, member["id"])
-        await update.message.reply_text(f"✅ Задача #{chore_id} *{chore['title']}* выполнена!", parse_mode="Markdown")
+        await update.message.reply_text(f"✅ Задача *{chore['title']}* выполнена!", parse_mode="Markdown")
     except Exception as e:
         await update.message.reply_text(f"Ошибка: {e}")
 
@@ -39,7 +39,7 @@ async def done_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         chore = await api.complete_chore(chore_id, member["id"])
-        await query.edit_message_text(f"✅ Задача #{chore_id} *{chore['title']}* выполнена!", parse_mode="Markdown")
+        await query.edit_message_text(f"✅ Задача *{chore['title']}* выполнена!", parse_mode="Markdown")
     except Exception as e:
         await query.edit_message_text(f"Ошибка: {e}")
 
@@ -59,7 +59,7 @@ async def take_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chore = await api.assign_chore(chore_id, mode="manual", assigned_to=member["id"])
         name = member.get("display_name") or member.get("username") or "вы"
         await query.edit_message_text(
-            f"✅ Задача *{chore['title']}* (#{chore_id}) назначена на {name}.",
+            f"✅ Задача *{chore['title']}* назначена на {name}.",
             parse_mode="Markdown",
         )
     except Exception as e:
