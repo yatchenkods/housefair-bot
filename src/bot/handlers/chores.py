@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ForceReply
 from telegram.ext import (
     ContextTypes,
     ConversationHandler,
@@ -20,7 +20,10 @@ ASSIGN_MODES = ["manual", "random", "rotation", "free"]
 
 async def addchore_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
-    await update.message.reply_text("Введите название задачи:")
+    await update.message.reply_text(
+        "Введите название задачи:",
+        reply_markup=ForceReply(selective=True),
+    )
     return TITLE
 
 
