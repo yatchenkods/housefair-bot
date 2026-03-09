@@ -99,8 +99,8 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def get_chore_conversation():
     return ConversationHandler(
         entry_points=[
-            CommandHandler("addchore", addchore_start),
-            CommandHandler("task", addchore_start),
+            CommandHandler("addchore", addchore_start, filters=filters.ChatType.GROUPS),
+            CommandHandler("task", addchore_start, filters=filters.ChatType.GROUPS),
         ],
         per_message=False,
         states={

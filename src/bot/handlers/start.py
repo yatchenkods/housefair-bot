@@ -16,37 +16,29 @@ _COMMANDS_TEXT = (
 )
 
 
+_PRIVATE_TEXT = (
+    "Этот бот работает только в групповых чатах.\n\n"
+    "Добавьте бота в общий чат и введите /start там.\n\n"
+    "Если у вас есть ссылка-приглашение от администратора — перейдите по ней."
+)
+
+
+async def private_chat_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(_PRIVATE_TEXT)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.args and context.args[0].startswith("join_"):
         await _handle_join(update, context, context.args[0])
         return
 
+    if update.effective_chat.type == "private":
+        await update.message.reply_text(_PRIVATE_TEXT)
+        return
+
     user = update.effective_user
     display_name = user.full_name or user.username or str(user.id)
-
-    # Если пользователь уже состоит в семье — не создавать новую
-    memberships = await api.get_user_memberships(user.id)
-    if memberships:
-        family = await api.get_family_by_id(memberships[0]["family_id"])
-        await update.message.reply_text(
-            f"👋 Привет, {display_name}!\n\n"
-            f"Семья: *{family['name']}*\n\n"
-            f"Команды:\n{_COMMANDS_TEXT}",
-            parse_mode="Markdown",
-        )
-        return
-
     chat_id = update.effective_chat.id
-    chat_type = update.effective_chat.type
-
-    # В личном чате без членства предлагаем вступить по ссылке
-    if chat_type == "private":
-        await update.message.reply_text(
-            "Вы ещё не состоите ни в одной семье.\n\n"
-            "Попросите администратора семьи прислать ссылку-приглашение (/addmember) "
-            "или добавьте бота в групповой чат и используйте /start там."
-        )
-        return
 
     # Групповой чат — создать семью если нет
     family = await api.get_family_by_chat(chat_id)
