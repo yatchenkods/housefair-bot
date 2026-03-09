@@ -2,6 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from ..client import api
+from ..utils import get_family_and_member
 
 
 async def done_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -14,17 +15,9 @@ async def done_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("ID должен быть числом")
         return
 
-    user = update.effective_user
-    chat_id = update.effective_chat.id
-
-    family = await api.get_family_by_chat(chat_id)
-    if not family:
+    family, member = await get_family_and_member(update)
+    if not family or not member:
         await update.message.reply_text("Сначала используйте /start")
-        return
-
-    member = await api.get_member_by_user(user.id, family["id"])
-    if not member:
-        await update.message.reply_text("Вы не зарегистрированы. Используйте /start")
         return
 
     try:
@@ -39,17 +32,9 @@ async def done_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     chore_id = int(query.data.split(":")[1])
 
-    user = update.effective_user
-    chat_id = update.effective_chat.id
-
-    family = await api.get_family_by_chat(chat_id)
-    if not family:
+    family, member = await get_family_and_member(update)
+    if not family or not member:
         await query.edit_message_text("Сначала используйте /start")
-        return
-
-    member = await api.get_member_by_user(user.id, family["id"])
-    if not member:
-        await query.edit_message_text("Вы не зарегистрированы. Используйте /start")
         return
 
     try:
@@ -64,17 +49,10 @@ async def take_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     chore_id = int(query.data.split(":")[1])
-    user = update.effective_user
-    chat_id = update.effective_chat.id
 
-    family = await api.get_family_by_chat(chat_id)
-    if not family:
-        await query.answer("Семья не найдена.", show_alert=True)
-        return
-
-    member = await api.get_member_by_user(user.id, family["id"])
-    if not member:
-        await query.answer("Вы не зарегистрированы.", show_alert=True)
+    family, member = await get_family_and_member(update)
+    if not family or not member:
+        await query.answer("Сначала используйте /start", show_alert=True)
         return
 
     try:

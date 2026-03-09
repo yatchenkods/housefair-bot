@@ -3,6 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from ..client import api
+from ..utils import get_family_and_member
 
 
 def _fmt_chore(c: dict) -> str:
@@ -12,18 +13,8 @@ def _fmt_chore(c: dict) -> str:
     return f"{status_icon} #{c['id']} *{c['title']}*{due}{assigned}"
 
 
-async def _get_family_and_member(update: Update):
-    chat_id = update.effective_chat.id
-    user = update.effective_user
-    family = await api.get_family_by_chat(chat_id)
-    if not family:
-        return None, None
-    member = await api.get_member_by_user(user.id, family["id"])
-    return family, member
-
-
 async def mytasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    family, member = await _get_family_and_member(update)
+    family, member = await get_family_and_member(update)
     if not family or not member:
         await update.message.reply_text("Сначала используйте /start")
         return
@@ -45,7 +36,7 @@ async def mytasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def alltasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    family, _ = await _get_family_and_member(update)
+    family, _ = await get_family_and_member(update)
     if not family:
         await update.message.reply_text("Сначала используйте /start")
         return
@@ -65,7 +56,7 @@ async def alltasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    family, _ = await _get_family_and_member(update)
+    family, _ = await get_family_and_member(update)
     if not family:
         await update.message.reply_text("Сначала используйте /start")
         return
@@ -88,7 +79,7 @@ async def pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    family, _ = await _get_family_and_member(update)
+    family, _ = await get_family_and_member(update)
     if not family:
         await update.message.reply_text("Сначала используйте /start")
         return
