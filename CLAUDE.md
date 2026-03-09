@@ -9,13 +9,15 @@ Always use the `.venv` virtual environment when working with the project:
 source .venv/bin/activate
 ```
 
+Required env vars (see `.env.example`): `TELEGRAM_TOKEN`, `API_BASE_URL`, `DATABASE_URL`, `JWT_SECRET`.
+
 ## Architecture
 
 Two-service architecture. **The bot never accesses the database directly.**
 
 ```
 Telegram Bot (python-telegram-bot 21.x)
-    ↓ HTTP/REST
+    ↓ HTTP/REST (httpx AsyncClient)
 FastAPI Backend (sole DB owner)
     ↓ ORM (SQLModel/SQLAlchemy)
 SQLite (MVP) → PostgreSQL (future, via DATABASE_URL change only)
@@ -23,55 +25,71 @@ SQLite (MVP) → PostgreSQL (future, via DATABASE_URL change only)
 
 ### Services
 
-- **Bot service** (`src/bot/`): Telegram handler logic → HTTP calls to API → formats responses. No DB connection strings, no ORM imports.
-- **API backend** (`src/api/`): FastAPI, all business logic, ORM models, REST endpoints. Only component with DB access.
+- **API backend** (`src/api/`): FastAPI app, all business logic, ORM models, REST endpoints. Only component with DB access. Entry point: `src/api/main.py`.
+- **Bot service** (`src/bot/`): Telegram handlers → calls API via `src/bot/client.py` (singleton `api: APIClient`) → formats responses for user. No DB imports allowed.
+  - `src/bot/scheduler.py` — APScheduler checks overdue chores every 30 min, sends notifications via Telegram.
+  - `src/bot/config.py` — pydantic-settings `BotSettings`.
 
-### Key API endpoints (from spec)
+### Key constraint
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/chores` | Create chore |
-| GET | `/api/chores` | List chores (filterable by family_id, assigned_to, status) |
-| PATCH | `/api/chores/{id}` | Update chore (assign, etc.) |
-| POST | `/api/chores/{id}/assign` | Assign chore |
-| POST | `/api/chores/{id}/complete` | Mark complete |
-| GET | `/api/chores/history` | Chore history |
-
-### Data models (backend only)
-
-- `families`: id, name, chat_id, created_at, timezone, settings (JSON)
-- `members`: id, family_id, user_id, username, display_name, role (admin/member), joined_at, preferences (JSON)
-- `chores`: id, family_id, title, description, chore_type (one_time/daily/weekly/monthly), category, assigned_to, created_by, created_at, due_date, completed_at, status (pending/completed/overdue), photo_url
+Bot handlers must only use `src/bot/client.APIClient` to interact with data. Never import from `src/api/` in bot code.
 
 ## Common Commands
 
 ```bash
-# Run API backend
+# Run API backend (dev)
 uvicorn src.api.main:app --reload --port 8000
 
-# Run bot + API together (requires Procfile)
+# Run bot (dev)
+python -m src.bot.main
+
+# Run both together
 honcho start
+
+# Docker
+docker-compose up -d
+docker-compose logs -f
 
 # Tests
 pytest tests/ -v
-pytest tests/test_foo.py::test_bar -v  # single test
+pytest tests/test_chores_api.py::test_create_chore -v  # single test
 ```
+
+## Testing
+
+- pytest with `asyncio_mode = "auto"` (pyproject.toml) — async tests run without `@pytest.mark.asyncio`.
+- `tests/conftest.py` provides `session` and `client` fixtures: SQLite in-memory with `StaticPool` (from `sqlalchemy.pool`) — **required** to avoid "no such table" errors. FastAPI dependency override via `app.dependency_overrides[get_session]`.
+- Test files: `test_families_api.py`, `test_members_api.py`, `test_chores_api.py` — all use `TestClient` (sync).
 
 ## Database
 
-- SQLite in WAL mode, stored in Docker volume at `./data:/app/data`
-- Connection via `DATABASE_URL` env var (backend only)
-- Daily backups to `/app/data/backups`, max 30 retained
-- Switching to PostgreSQL = change `DATABASE_URL` + run migrations; bot code unchanged
+- SQLite in WAL mode (`PRAGMA journal_mode=WAL`, `busy_timeout=5000`) — set via SQLAlchemy `connect` event in `src/api/database.py`.
+- Stored at `./data/database.db` (Docker volume `./data:/app/data`).
+- Daily backups to `./data/backups/`, max 30 retained (`src/api/backup.py`, APScheduler at 03:00 UTC).
+- Switch to PostgreSQL = change `DATABASE_URL` only; bot code unchanged.
 
-## Auth
+## API Endpoints
 
-Telegram initData HMAC-SHA256 → JWT (HS256, 24h). Dev bypass: `JWT_SECRET=dev` + `user_id=0`.
+| Method | Path | Description |
+|--------|------|-------------|
+| POST/GET | `/api/families` | Create / list families |
+| GET | `/api/families/{chat_id}` | Get family by Telegram chat_id |
+| POST/GET | `/api/members` | Create / list members |
+| GET | `/api/members/by_user` | Get member by user_id + family_id |
+| POST | `/api/chores` | Create chore |
+| GET | `/api/chores` | List chores (filter: family_id, assigned_to, status) |
+| PATCH | `/api/chores/{id}` | Update chore |
+| POST | `/api/chores/{id}/assign` | Assign chore (modes: manual, random, rotation, free) |
+| POST | `/api/chores/{id}/complete` | Mark complete |
+| GET | `/api/chores/history` | Chore history (filter: family_id, from_dt, to_dt) |
 
 ## Bot Commands
 
-`/addchore`, `/task` — create chore
+`/start` — register family + member, `/help` — command list
+`/addchore`, `/task` — create chore (ConversationHandler)
 `/mytasks`, `/alltasks`, `/pending`, `/history` — view chores
 `/done <id>` — mark complete
 
-Assignment modes: manual, random, rotation, free task.
+## Build
+
+`pyproject.toml` uses `setuptools.build_meta` as build-backend. Python >=3.11.

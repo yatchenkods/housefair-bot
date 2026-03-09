@@ -57,3 +57,32 @@ async def done_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"✅ Задача #{chore_id} *{chore['title']}* выполнена!", parse_mode="Markdown")
     except Exception as e:
         await query.edit_message_text(f"Ошибка: {e}")
+
+
+async def take_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    chore_id = int(query.data.split(":")[1])
+    user = update.effective_user
+    chat_id = update.effective_chat.id
+
+    family = await api.get_family_by_chat(chat_id)
+    if not family:
+        await query.answer("Семья не найдена.", show_alert=True)
+        return
+
+    member = await api.get_member_by_user(user.id, family["id"])
+    if not member:
+        await query.answer("Вы не зарегистрированы.", show_alert=True)
+        return
+
+    try:
+        chore = await api.assign_chore(chore_id, mode="manual", assigned_to=member["id"])
+        name = member.get("display_name") or member.get("username") or "вы"
+        await query.edit_message_text(
+            f"✅ Задача *{chore['title']}* (#{chore_id}) назначена на {name}.",
+            parse_mode="Markdown",
+        )
+    except Exception as e:
+        await query.answer(f"Ошибка: {e}", show_alert=True)
