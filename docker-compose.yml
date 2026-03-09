@@ -1,0 +1,14 @@
+services:
+  housefair-bot:
+    build: .
+    container_name: housefair_bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
