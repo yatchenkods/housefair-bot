@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta, timezone
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
@@ -10,7 +9,7 @@ def _fmt_chore(c: dict) -> str:
     status_icon = {"pending": "⏳", "completed": "✅", "overdue": "🔴"}.get(c["status"], "❓")
     due = f"\n  📅 до {c['due_date'][:10]}" if c.get("due_date") else ""
     assigned = f"\n  👤 #{c['assigned_to']}" if c.get("assigned_to") else ""
-    return f"{status_icon} #{c['id']} *{c['title']}*{due}{assigned}"
+    return f"{status_icon} *{c['title']}*{due}{assigned}"
 
 
 async def mytasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -24,7 +23,7 @@ async def mytasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     keyboard = [
         [InlineKeyboardButton(
-            f"✅ Выполнить: {c['title'][:30]} (#{c['id']})",
+            f"✅ Выполнить: {c['title'][:30]}",
             callback_data=f"done:{c['id']}"
         )]
         for c in chores
@@ -40,19 +39,22 @@ async def alltasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not family:
         await update.message.reply_text("Сначала используйте /start")
         return
-    chores = await api.list_chores(family_id=family["id"])
-    cutoff = datetime.now(timezone.utc) - timedelta(days=3)
-    visible = []
-    for c in chores:
-        if c["status"] != "completed":
-            visible.append(c)
-        elif c.get("completed_at") and datetime.fromisoformat(c["completed_at"]).replace(tzinfo=timezone.utc) >= cutoff:
-            visible.append(c)
-    if not visible:
-        await update.message.reply_text("Нет задач")
+    chores = await api.list_chores(family_id=family["id"], status="pending")
+    free = [c for c in chores if c.get("assigned_to") is None]
+    if not free:
+        await update.message.reply_text("Нет свободных задач 🎉")
         return
-    lines = [_fmt_chore(c) for c in visible]
-    await update.message.reply_text("Все задачи:\n" + "\n".join(lines), parse_mode="Markdown")
+    keyboard = [
+        [InlineKeyboardButton(
+            f"⚡ Взять: {c['title'][:30]}",
+            callback_data=f"take:{c['id']}"
+        )]
+        for c in free
+    ]
+    await update.message.reply_text(
+        "Свободные задачи:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
 
 
 async def pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -67,7 +69,7 @@ async def pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     keyboard = [
         [InlineKeyboardButton(
-            f"⚡ Взять: {c['title'][:30]} (#{c['id']})",
+            f"⚡ Взять: {c['title'][:30]}",
             callback_data=f"take:{c['id']}"
         )]
         for c in unassigned
